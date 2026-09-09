@@ -6,6 +6,10 @@ on:
     - cron: "0 6 * * 1-5"
   workflow_dispatch:        # permite lanzarlo a mano desde la pestaña Actions
 
+concurrency:
+  group: radar-db            # comparte la base SQLite con el recolector
+  cancel-in-progress: false
+
 jobs:
   radar:
     runs-on: ubuntu-latest
