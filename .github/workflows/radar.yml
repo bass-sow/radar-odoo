@@ -2,9 +2,14 @@ name: Radar Odoo
 
 on:
   schedule:
-    # 06:00 UTC = 08:00 en Madrid en horario de verano (07:00 en invierno).
-    - cron: "0 6 * * 1-5"
+    # Tres pasadas al dia, todos los dias: 07:00, 12:00 y 18:00 en Madrid en
+    # invierno (UTC+1). En verano llegan una hora mas tarde. GitHub puede
+    # retrasar unos minutos cualquier cron.
+    - cron: "0 6,11,17 * * *"
   workflow_dispatch:        # permite lanzarlo a mano desde la pestaña Actions
+
+permissions:
+  contents: write           # para el commit de mantenimiento de abajo
 
 concurrency:
   group: radar-db            # comparte la base SQLite con el recolector
@@ -45,3 +50,15 @@ jobs:
         run: python -m radar.main
 
 # Radar de ofertas Python/Odoo - github.com/sowDragnir/radar-odoo
+
+      # GitHub apaga los workflows programados tras 60 dias sin actividad en el
+      # repo. Si el ultimo commit tiene mas de 40 dias, deja uno vacio.
+      - name: Mantener vivo el radar
+        run: |
+          ultimo=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - ultimo )) -gt $(( 40 * 86400 )) ]; then
+            git config user.name "radar-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git commit --allow-empty -m "Mantener activo el radar"
+            git push
+          fi
