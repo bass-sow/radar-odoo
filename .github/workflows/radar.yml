@@ -50,7 +50,7 @@ jobs:
           IA_KEY: ${{ secrets.IA_KEY }}
         run: python -m radar.main
 
-# Radar de ofertas Python/Odoo - github.com/sowDragnir/radar-odoo
+# Radar de ofertas Python/Odoo - github.com/bass-sow/radar-odoo
 
       # GitHub apaga los workflows programados tras 60 dias sin actividad en el
       # repo. Si el ultimo commit tiene mas de 40 dias, deja uno vacio.
