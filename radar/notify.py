@@ -61,6 +61,8 @@ def telegram(jobs: list[dict]) -> int:
             f"{html.escape(j.get('company') or '?')} · {html.escape(j.get('location') or '')}\n"
             f"Encaje: <b>{j.get('score', 0)}</b> · <code>{j.get('source','')}</code>"
         )
+        if j.get("salary"):
+            texto += f"\n💶 {html.escape(j['salary'])}"
         if j.get("email"):
             texto += f"\n✉️ <code>{html.escape(j['email'])}</code>"
         r = _tg("sendMessage", chat_id=chat, text=texto, parse_mode="HTML",

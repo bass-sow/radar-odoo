@@ -98,6 +98,10 @@ TITULO_VETO = [
 # Si el titulo dice esto, el veto no aplica: es su terreno.
 TITULO_SALVA = ["odoo", "python", "fastapi", "django", "flask", "erp"]
 
+# Salario: negociable de 27K a 40K segun la oferta. Solo se descarta una
+# oferta si publica un maximo por debajo de este minimo. Sin salario, entra.
+SALARIO_MIN = 27000
+
 # Por debajo de esto no molesta. Bajarlo = mas ofertas y mas ruido.
 MIN_SCORE = 40
 

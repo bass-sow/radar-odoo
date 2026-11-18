@@ -1,6 +1,8 @@
 """Filtro y puntuacion: decide que oferta merece un aviso."""
 from __future__ import annotations
 
+import re
+
 from . import config
 
 
@@ -54,8 +56,20 @@ def score(job: dict) -> int:
     return puntos
 
 
+def salario_max(job: dict) -> int | None:
+    """Maximo del rango publicado en euros/ano ("27.000€ - 33.000€ b/a" -> 33000)."""
+    txt = (job.get("salary") or "").replace(".", "").replace("&euro;", "€")
+    nums = [int(n) for n in re.findall(r"(\d{4,6})\s*€", txt)]
+    nums += [int(n) * 1000 for n in re.findall(r"(\d{2,3})\s*[kK]\b", txt)]
+    nums = [n for n in nums if 10000 <= n <= 200000]
+    return max(nums) if nums else None
+
+
 def keep(job: dict) -> bool:
     job["score"] = score(job)
+    tope = salario_max(job)
+    if tope is not None and tope < config.SALARIO_MIN:
+        return False
     return job["score"] >= config.MIN_SCORE and location_ok(job)
 
 

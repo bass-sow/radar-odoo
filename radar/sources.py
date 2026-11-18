@@ -240,7 +240,52 @@ def partner_pages(partners: list[dict], conn) -> list[dict]:
     return out
 
 
-ALL = [remoteok, remotive, arbeitnow, jobicy, weworkremotely, odoo_sa, hackernews]
+# --------------------------------------------------------------------------- #
+# Tecnoempleo: el portal tech espanol, publica el salario en casi todas
+# --------------------------------------------------------------------------- #
+TECNOEMPLEO_DIAS = 21
+TECNOEMPLEO_TERMINOS = ("odoo", "python", "django", "fastapi", "flask")
+_TE_BLOQUE = '<div class="p-3 border rounded mb-3 bg-white"'
+_UA_NAVEGADOR = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"}
+
+
+def _te_texto(fragmento: str) -> str:
+    return re.sub(r"\s+", " ", _strip(fragmento)).strip()
+
+
+def tecnoempleo() -> list[dict]:
+    out, vistos = [], set()
+    for term in TECNOEMPLEO_TERMINOS:
+        r = requests.get(f"https://www.tecnoempleo.com/ofertas-trabajo/?te={term}",
+                         headers=_UA_NAVEGADOR, timeout=TIMEOUT)
+        r.raise_for_status()
+        for bloque in r.text.split(_TE_BLOQUE)[1:]:
+            m = re.search(r'<h3[^>]*>\s*<a href="([^"]+/rf-[0-9a-f]+)"[^>]*title="([^"]*)"', bloque)
+            if not m or m.group(1) in vistos:
+                continue
+            url, titulo = m.group(1), html.unescape(m.group(2))
+            vistos.add(url)
+            emp = re.search(r'title="Ofertas de Empleo ([^"]*)"', bloque)
+            # Columna derecha: fecha<br><br>ubicacion<br>categoria<br>salario
+            der = bloque.split('text-right hidden-md-down">', 1)
+            der = der[1].split("</div>", 1)[0] if len(der) > 1 else ""
+            partes = [_te_texto(x) for x in der.split("<br>")]
+            partes = [x for x in partes if x]
+            fecha = re.search(r"\d{2}/\d{2}/\d{4}", partes[0]).group(0) if partes and re.search(r"\d{2}/\d{2}/\d{4}", partes[0]) else None
+            ubic = partes[1] if len(partes) > 1 else ""
+            salario = next((x for x in partes if "€" in x), "")
+            resumen = _te_texto(bloque.split('hidden-md-down text-gray-800">', 1)[-1].split("</span> </div>", 1)[0])[:1500]
+            if fecha and (datetime.now() - datetime.strptime(fecha, "%d/%m/%Y")).days > TECNOEMPLEO_DIAS:
+                continue  # Tecnoempleo mezcla ofertas viejas "actualizadas"
+            job = _job(titulo, html.unescape(emp.group(1)) if emp else "", ubic, url,
+                       "tecnoempleo", fecha, f"{resumen} {salario}")
+            job["salary"] = salario
+            out.append(job)
+    return out
+
+
+ALL = [tecnoempleo, remoteok, remotive, arbeitnow, jobicy, weworkremotely, odoo_sa, hackernews]
 
 
 def collect() -> list[dict]:
