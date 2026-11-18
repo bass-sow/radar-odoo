@@ -30,10 +30,12 @@ log = logging.getLogger(__name__)
 # Cualquier API compatible con chat completions de OpenAI. Por defecto, Gemini
 # de Google: tiene plan gratuito sin tarjeta (clave en aistudio.google.com).
 # Para cambiar de proveedor basta con IA_URL e IA_MODEL (Groq, OpenRouter...).
-PUERTAS = [(
-    os.getenv("IA_URL", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"),
-    os.getenv("IA_MODEL", "gemini-2.5-flash"),
-)]
+_URL = os.getenv("IA_URL", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+# Google retira modelos a menudo para cuentas nuevas: se prueban en orden y se
+# queda con el primero que responda. IA_MODEL fuerza uno concreto.
+_MODELOS = ([os.getenv("IA_MODEL")] if os.getenv("IA_MODEL") else
+            ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview"])
+PUERTAS = [(_URL, m) for m in _MODELOS]
 _puerta: tuple[str, str] | None = None
 TIMEOUT = 60
 PAUSA = 4.5        # el plan gratuito permite ~15 peticiones por minuto
@@ -124,12 +126,12 @@ def _preguntar(job: dict, token: str) -> dict | None:
         try:
             texto = _llamar(url, modelo, job, token)
         except Exception as exc:
-            log.info("IA: %s no sirve: %s", url.split("/")[2], exc)
+            log.info("IA: %s no sirve: %s", modelo, str(exc)[:160])
             ultimo = exc
             continue
         if _puerta is None:
             _puerta = (url, modelo)
-            log.info("IA: uso %s con %s", url.split("/")[2], modelo)
+            log.info("IA: uso %s", modelo)
         datos = _json(texto)
         return {
             "encaje": max(0, min(100, int(datos.get("encaje", 0)))),
