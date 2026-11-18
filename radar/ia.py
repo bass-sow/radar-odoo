@@ -37,7 +37,7 @@ _MODELOS = ([os.getenv("IA_MODEL")] if os.getenv("IA_MODEL") else
             ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview"])
 PUERTAS = [(_URL, m) for m in _MODELOS]
 _puerta: tuple[str, str] | None = None
-TIMEOUT = 60
+TIMEOUT = 90
 PAUSA = 4.5        # el plan gratuito permite ~15 peticiones por minuto
 DESCARTE = 25      # por debajo de esto la IA considera que no encaja
 
@@ -101,11 +101,19 @@ def _llamar(url: str, modelo: str, job: dict, token: str) -> str:
     }
     cab = {"Authorization": f"Bearer {token}", "Content-Type": "application/json",
            "Accept": "application/json"}
-    for intento in range(2):
-        r = requests.post(url, headers=cab, json=cuerpo, timeout=TIMEOUT)
-        if r.status_code == 429 and intento == 0:
-            espera = int(r.headers.get("retry-after", "20"))
-            log.info("IA: limite de peticiones, espero %ds", espera)
+    for intento in range(3):
+        try:
+            r = requests.post(url, headers=cab, json=cuerpo, timeout=TIMEOUT)
+        except requests.Timeout:
+            if intento < 2:
+                log.info("IA: %s tarda demasiado, reintento", modelo)
+                continue
+            raise
+        # 429 = cuota por minuto; 500/503 = servidor saturado (frecuente en el
+        # plan gratuito). Se espera y se reintenta antes de rendirse.
+        if r.status_code in (429, 500, 503) and intento < 2:
+            espera = int(r.headers.get("retry-after", "0") or 0) or 15 * (intento + 1)
+            log.info("IA: %s responde %d, espero %ds", modelo, r.status_code, espera)
             time.sleep(min(espera, 60))
             continue
         if r.status_code >= 400:
