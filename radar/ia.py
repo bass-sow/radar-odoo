@@ -106,7 +106,8 @@ def _llamar(url: str, modelo: str, job: dict, token: str) -> str:
             log.info("IA: limite de peticiones, espero %ds", espera)
             time.sleep(min(espera, 60))
             continue
-        r.raise_for_status()
+        if r.status_code >= 400:
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
         try:
             return r.json()["choices"][0]["message"]["content"] or ""
         except ValueError:
@@ -175,8 +176,19 @@ def evaluar(jobs: list[dict]) -> list[dict]:
     return quedan
 
 
+def listar_modelos() -> list[str]:
+    """Modelos que acepta la clave (para elegir IA_MODEL)."""
+    url = PUERTAS[0][0].rsplit("/chat/completions", 1)[0] + "/models"
+    r = requests.get(url, headers={"Authorization": f"Bearer {_token()}"}, timeout=TIMEOUT)
+    if r.status_code >= 400:
+        return [f"HTTP {r.status_code}: {r.text[:300]}"]
+    return sorted(m.get("id", "") for m in r.json().get("data", []))
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)-7s %(message)s")
+    if _token():
+        print("MODELOS:", ", ".join(m for m in listar_modelos() if "gemini" in m or "HTTP" in m))
     ejemplos = [
         {"title": "Desarrollador/a Odoo", "company": "Partner Odoo", "location": "Barcelona (Híbrido)",
          "source": "prueba", "salary": "30.000€ - 36.000€",
