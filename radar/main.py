@@ -11,7 +11,7 @@ import logging
 import os
 from pathlib import Path
 
-from . import config, gmail, match, notify, sources, store
+from . import config, gmail, match, notify, recordatorios, sources, store
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -86,6 +86,13 @@ def main() -> int:
     if args.dry_run:
         log.info("--dry-run: no se envia nada")
         return 0
+
+    try:
+        n = recordatorios.enviar()
+        if n:
+            log.info("Telegram: %d recordatorios", n)
+    except Exception as exc:
+        log.warning("recordatorios FALLO: %s", exc)
 
     if nuevas:
         # Notion primero: el aviso de Telegram lleva un boton a la ficha, y los

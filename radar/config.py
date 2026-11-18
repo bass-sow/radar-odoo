@@ -12,6 +12,17 @@ KEYWORDS = [
     "python", "fastapi", "flask", "django",
 ]
 
+# Titulos de su terreno aunque no nombren Python (p. ej. "Desarrollador/a de
+# Software" en una empresa que usa Python): suman algo si el cuerpo encaja.
+TITULO_GENERICO = {
+    "backend": 15, "back-end": 15, "back end": 15,
+    "desarrollador": 10, "developer": 10, "programador": 10,
+    "software engineer": 10, "ingeniero de software": 10, "ingeniero/a de software": 10,
+    "analista programador": 12, "integraciones": 12, "integration": 10,
+    "automation": 10, "automatizacion": 10, "automatización": 10,
+    "ai engineer": 12, "ia engineer": 12, "llm": 10, "api": 10,
+}
+
 # Peso por tecnologia. Cuanto mas encaje con el CV, mas arriba sale.
 BOOST = {
     # Nucleo Odoo: es donde tiene 4 anos y donde menos competencia hay
@@ -20,7 +31,8 @@ BOOST = {
     "gs1": 10, "datamatrix": 10, "fefo": 10, "xml-rpc": 12,
 
     # Python y frameworks del CV
-    "python": 25, "fastapi": 22, "django": 16, "flask": 14,
+    "python": 25, "fastapi": 22, "openai": 6, "langchain": 6, "llm": 6,
+    "ia generativa": 6, "generative ai": 6, "django": 16, "flask": 14,
     "api rest": 12, "rest api": 12, "apis rest": 12, "pcap": 10,
 
     # Datos
@@ -103,9 +115,9 @@ TITULO_SALVA = ["odoo", "python", "fastapi", "django", "flask", "erp"]
 SALARIO_MIN = 27000
 
 # Por debajo de esto no molesta. Bajarlo = mas ofertas y mas ruido.
-MIN_SCORE = 40
+MIN_SCORE = 30
 
 # Tope de avisos por ejecucion, para no recibir un muro en Telegram.
-MAX_AVISOS = 15
+MAX_AVISOS = 20
 
 PARTNERS_FILE = "partners.json"

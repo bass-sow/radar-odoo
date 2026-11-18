@@ -35,6 +35,9 @@ def score(job: dict) -> int:
         return 0
 
     titulo = job.get("title", "").lower()
+    # En HN se cuelan los "quiero que me contraten": empiezan por "Location:".
+    if titulo.startswith("location:"):
+        return 0
     if _has(titulo, config.TITULO_VETO) and not _has(titulo, config.TITULO_SALVA):
         return 0
 
@@ -48,6 +51,8 @@ def score(job: dict) -> int:
     # Palabra entera: "cto" no debe saltar dentro de "proyecto".
     puntos -= sum(w for k, w in config.PENALIZA.items()
                   if re.search(rf"(?<!\w){re.escape(k)}(?!\w)", text))
+
+    puntos += max([w for k, w in config.TITULO_GENERICO.items() if k in titulo], default=0)
 
     if "odoo" in titulo:
         puntos += 30
