@@ -27,8 +27,15 @@ import requests
 
 log = logging.getLogger(__name__)
 
-URL = "https://models.github.ai/inference/chat/completions"
-MODELO = os.getenv("IA_MODEL", "openai/gpt-4.1-mini")
+# Dos puertas a GitHub Models: la nueva y la de Azure. Se prueba en orden y se
+# queda con la primera que responda JSON de verdad.
+PUERTAS = [
+    ("https://models.github.ai/inference/chat/completions",
+     os.getenv("IA_MODEL", "openai/gpt-4.1-mini")),
+    ("https://models.inference.ai.azure.com/chat/completions",
+     os.getenv("IA_MODEL_AZURE", "gpt-4o-mini")),
+]
+_puerta: tuple[str, str] | None = None
 TIMEOUT = 60
 PAUSA = 4.5        # el plan gratuito permite ~15 peticiones por minuto
 DESCARTE = 25      # por debajo de esto la IA considera que no encaja
@@ -79,9 +86,10 @@ def _json(texto: str) -> dict:
     return json.loads(texto[ini:fin + 1])
 
 
-def _preguntar(job: dict, token: str) -> dict | None:
+def _llamar(url: str, modelo: str, job: dict, token: str) -> str:
+    """Devuelve el texto del modelo. RuntimeError si la puerta no habla JSON."""
     cuerpo = {
-        "model": MODELO,
+        "model": modelo,
         "temperature": 0.2,
         "max_tokens": 400,
         "response_format": {"type": "json_object"},
@@ -93,7 +101,7 @@ def _preguntar(job: dict, token: str) -> dict | None:
     cab = {"Authorization": f"Bearer {token}", "Content-Type": "application/json",
            "Accept": "application/json"}
     for intento in range(2):
-        r = requests.post(URL, headers=cab, json=cuerpo, timeout=TIMEOUT)
+        r = requests.post(url, headers=cab, json=cuerpo, timeout=TIMEOUT)
         if r.status_code == 429 and intento == 0:
             espera = int(r.headers.get("retry-after", "20"))
             log.info("IA: limite de peticiones, espero %ds", espera)
@@ -101,17 +109,34 @@ def _preguntar(job: dict, token: str) -> dict | None:
             continue
         r.raise_for_status()
         try:
-            texto = r.json()["choices"][0]["message"]["content"] or ""
+            return r.json()["choices"][0]["message"]["content"] or ""
         except ValueError:
             raise RuntimeError(f"respuesta no JSON ({r.status_code}, "
-                               f"{r.headers.get('content-type')}): {r.text[:200]!r}")
+                               f"{r.headers.get('content-type')}): {r.text[:120]!r}")
+    raise RuntimeError("limite de peticiones")
+
+
+def _preguntar(job: dict, token: str) -> dict | None:
+    global _puerta
+    puertas = [_puerta] if _puerta else PUERTAS
+    ultimo: Exception | None = None
+    for url, modelo in puertas:
+        try:
+            texto = _llamar(url, modelo, job, token)
+        except Exception as exc:
+            log.info("IA: %s no sirve: %s", url.split("/")[2], exc)
+            ultimo = exc
+            continue
+        if _puerta is None:
+            _puerta = (url, modelo)
+            log.info("IA: uso %s con %s", url.split("/")[2], modelo)
         datos = _json(texto)
         return {
             "encaje": max(0, min(100, int(datos.get("encaje", 0)))),
             "motivo": str(datos.get("motivo", "")).strip()[:300],
             "parrafo": str(datos.get("parrafo", "")).strip()[:900],
         }
-    return None
+    raise ultimo or RuntimeError("sin puertas")
 
 
 def evaluar(jobs: list[dict]) -> list[dict]:
