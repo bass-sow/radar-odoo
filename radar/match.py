@@ -45,7 +45,9 @@ def score(job: dict) -> int:
     cuerpo = sum(w for k, w in config.BOOST.items() if k in text and k not in titulo)
     puntos += min(cuerpo // 4, CUERPO_MAX)
 
-    puntos -= sum(w for k, w in config.PENALIZA.items() if k in text)
+    # Palabra entera: "cto" no debe saltar dentro de "proyecto".
+    puntos -= sum(w for k, w in config.PENALIZA.items()
+                  if re.search(rf"(?<!\w){re.escape(k)}(?!\w)", text))
 
     if "odoo" in titulo:
         puntos += 30
