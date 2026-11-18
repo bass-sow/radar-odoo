@@ -70,6 +70,15 @@ def _oferta(job: dict) -> str:
             f"Fuente: {job.get('source', '')}\n\nTexto:\n{(job.get('text') or '')[:3500]}")
 
 
+def _json(texto: str) -> dict:
+    """Saca el objeto JSON aunque venga envuelto en ```json ... ``` o con texto alrededor."""
+    texto = texto.strip()
+    ini, fin = texto.find("{"), texto.rfind("}")
+    if ini == -1 or fin <= ini:
+        raise ValueError(f"sin JSON en la respuesta: {texto[:200]!r}")
+    return json.loads(texto[ini:fin + 1])
+
+
 def _preguntar(job: dict, token: str) -> dict | None:
     cuerpo = {
         "model": MODELO,
@@ -91,8 +100,12 @@ def _preguntar(job: dict, token: str) -> dict | None:
             time.sleep(min(espera, 60))
             continue
         r.raise_for_status()
-        texto = r.json()["choices"][0]["message"]["content"]
-        datos = json.loads(texto)
+        try:
+            texto = r.json()["choices"][0]["message"]["content"] or ""
+        except ValueError:
+            raise RuntimeError(f"respuesta no JSON ({r.status_code}, "
+                               f"{r.headers.get('content-type')}): {r.text[:200]!r}")
+        datos = _json(texto)
         return {
             "encaje": max(0, min(100, int(datos.get("encaje", 0)))),
             "motivo": str(datos.get("motivo", "")).strip()[:300],
