@@ -11,7 +11,7 @@ from __future__ import annotations
 
 FIRMA = """Bassirou Sow
 642 544 761 · neybassj@gmail.com
-linkedin.com/in/bassirou-sow"""
+linkedin.com/in/bassirou-sow-b64333236"""
 
 BAZAS = [
     "Módulos a medida sobre Odoo v15–v19: MRP y fabricación, inventario, ventas.",
