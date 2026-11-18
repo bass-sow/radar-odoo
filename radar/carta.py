@@ -60,6 +60,10 @@ def cuerpo(job: dict) -> str:
                    f"en un portal.")
 
     bazas = "\n".join(f"· {b}" for b in BAZAS)
+    # Si la IA ha leido la oferta, su parrafo conecta ESTE puesto con la
+    # experiencia real; va justo despues de la entrada.
+    if job.get("ia_parrafo"):
+        entrada += "\n\n" + job["ia_parrafo"]
 
     return (
         f"Hola,\n\n{entrada}\n\n"
@@ -86,8 +90,8 @@ def bloques_notion(job: dict) -> list[dict]:
         {"object": "block", "type": "callout",
          "callout": {"icon": {"emoji": "✏️"},
                      "rich_text": [{"type": "text", "text": {"content":
-                         "Esqueleto automático. Añade una frase concreta sobre "
-                         "esta empresa antes de enviarlo, y adjunta el CV."}}]}},
+                         "Borrador automático (el segundo párrafo lo escribe la IA "
+                         "a partir de la oferta). Repásalo antes de enviarlo."}}]}},
         parrafo(f"Para: {job.get('email', '')}"),
         parrafo(f"Asunto: {asunto(job)}"),
     ]

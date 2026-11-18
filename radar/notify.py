@@ -61,6 +61,8 @@ def telegram(jobs: list[dict]) -> int:
             f"{html.escape(j.get('company') or '?')} · {html.escape(j.get('location') or '')}\n"
             f"Encaje: <b>{j.get('score', 0)}</b> · <code>{j.get('source','')}</code>"
         )
+        if j.get("ia_motivo"):
+            texto += f"\n🤖 <b>{j['ia_score']}/100</b> · {html.escape(j['ia_motivo'])}"
         if j.get("salary"):
             texto += f"\n💶 {html.escape(j['salary'])}"
         if j.get("email"):
@@ -100,15 +102,20 @@ def notion(jobs: list[dict]) -> dict[str, str]:
             "Ubicación": {"rich_text": [{"text": {"content": (j.get("location") or "")[:120]}}]},
             "Enlace": {"url": j.get("url")},
             "Fuente": {"select": {"name": j.get("source", "?")}},
-            "Encaje": {"number": j.get("score", 0)},
+            "Encaje": {"number": j.get("ia_score", j.get("score", 0))},
             "Estado": {"select": {"name": "Nueva"}},
         }
         cuerpo: dict = {"parent": {"database_id": db}, "properties": props}
+        if j.get("ia_motivo"):
+            cuerpo["children"] = [{"object": "block", "type": "callout", "callout": {
+                "icon": {"emoji": "🤖"},
+                "rich_text": [{"type": "text", "text": {"content":
+                    f"Encaje según la IA: {j['ia_score']}/100. {j['ia_motivo']}"[:1900]}}]}}]
         if j.get("email"):
             props["Email"] = {"email": j["email"]}
             # Con contacto, la ficha nace con el borrador dentro: desde el movil
             # es copiar y pegar en vez de escribir desde cero.
-            cuerpo["children"] = carta.bloques_notion(j)
+            cuerpo["children"] = cuerpo.get("children", []) + carta.bloques_notion(j)
 
         r = requests.post("https://api.notion.com/v1/pages", headers=cab,
                           json=cuerpo, timeout=TIMEOUT)

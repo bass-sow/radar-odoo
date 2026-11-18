@@ -11,7 +11,7 @@ import logging
 import os
 from pathlib import Path
 
-from . import config, gmail, match, notify, recordatorios, sources, store
+from . import config, gmail, ia, match, notify, recordatorios, sources, store
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -79,9 +79,21 @@ def main() -> int:
         log.info("Recorto a las %d mejores", config.MAX_AVISOS)
         nuevas = nuevas[:config.MAX_AVISOS]
 
+    # Segunda opinion: un LLM lee cada oferta contra el CV real. Las que
+    # descarta no se avisan, pero se marcan como vistas para no repetirlas.
+    if nuevas:
+        evaluadas = ia.evaluar(nuevas)
+        descartadas = [j for j in nuevas if j not in evaluadas]
+        if descartadas:
+            log.info("IA descarta %d que no encajan", len(descartadas))
+            if not args.dry_run:
+                store.mark_notified(conn, descartadas)
+        nuevas = evaluadas
+
     for j in nuevas[:20]:
-        log.info("  %3d pts | %-45s | %-22s | %s",
-                 j["score"], j["title"][:45], (j.get("company") or "")[:22], j["source"])
+        log.info("  %3d pts | IA %3s | %-45s | %-22s | %s",
+                 j["score"], j.get("ia_score", "-"), j["title"][:45],
+                 (j.get("company") or "")[:22], j["source"])
 
     if args.dry_run:
         log.info("--dry-run: no se envia nada")
