@@ -9,10 +9,10 @@ entera y devuelve tres cosas:
     parrafo  2-3 frases para la carta, que conectan ESA oferta con experiencia
              que de verdad tiene (nada inventado)
 
-Usa GitHub Models: gratis desde GitHub Actions con el GITHUB_TOKEN del propio
-workflow (permiso `models: read`), sin claves ni tarjeta. La API es compatible
-con la de chat completions de OpenAI. Si falla o no hay token, el radar sigue
-igual que antes, solo con la puntuacion por palabras clave.
+Usa la API de Gemini (plan gratuito) por su interfaz compatible con OpenAI; la
+clave va en el secreto IA_KEY. (Antes era GitHub Models, retirado el 30-jul-2026.)
+Si falla o no hay clave, el radar sigue igual que antes, solo con la
+puntuacion por palabras clave.
 
     python -m radar.ia      # prueba con dos ofertas de ejemplo
 """
@@ -27,14 +27,13 @@ import requests
 
 log = logging.getLogger(__name__)
 
-# Dos puertas a GitHub Models: la nueva y la de Azure. Se prueba en orden y se
-# queda con la primera que responda JSON de verdad.
-PUERTAS = [
-    ("https://models.github.ai/inference/chat/completions",
-     os.getenv("IA_MODEL", "openai/gpt-4.1-mini")),
-    ("https://models.inference.ai.azure.com/chat/completions",
-     os.getenv("IA_MODEL_AZURE", "gpt-4o-mini")),
-]
+# Cualquier API compatible con chat completions de OpenAI. Por defecto, Gemini
+# de Google: tiene plan gratuito sin tarjeta (clave en aistudio.google.com).
+# Para cambiar de proveedor basta con IA_URL e IA_MODEL (Groq, OpenRouter...).
+PUERTAS = [(
+    os.getenv("IA_URL", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"),
+    os.getenv("IA_MODEL", "gemini-2.5-flash"),
+)]
 _puerta: tuple[str, str] | None = None
 TIMEOUT = 60
 PAUSA = 4.5        # el plan gratuito permite ~15 peticiones por minuto
@@ -68,7 +67,7 @@ Devuelve SOLO un JSON con estas claves:
 
 
 def _token() -> str | None:
-    return os.getenv("GITHUB_TOKEN") or os.getenv("GH_MODELS_TOKEN")
+    return os.getenv("IA_KEY")
 
 
 def _oferta(job: dict) -> str:
@@ -148,7 +147,7 @@ def evaluar(jobs: list[dict]) -> list[dict]:
     token = _token()
     if not token or not jobs:
         if not token:
-            log.info("IA: sin GITHUB_TOKEN, sigo solo con palabras clave")
+            log.info("IA: sin IA_KEY, sigo solo con palabras clave")
         return jobs
 
     fallos = 0
